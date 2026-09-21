@@ -93,6 +93,17 @@ li{margin:4px 0}
 .answer .ref{color:var(--accent);text-decoration:underline;cursor:pointer}
 .mapbox{margin:4px 0 12px;border-radius:14px;overflow:hidden;background:var(--chip);aspect-ratio:4/3;box-shadow:var(--shadow)}
 .mapbox iframe{width:100%;height:100%;border:0;display:block}
+.mapbox #lmap{width:100%;height:100%}
+.card .img{position:relative}
+.pcount{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:3px 8px;border-radius:999px}
+.plist{background:var(--card);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.prow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.prow:last-child{border:0}
+.pnum,.lpin span{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.lpin span{border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.pinfo{flex:1;min-width:0;font-size:14px}
+.paddr{font-size:12px;color:var(--muted);margin-top:2px}
+.pnav{padding:8px 10px !important}
 .keybox{max-width:420px;margin:30px auto;text-align:center}
 .keybox input{margin:14px 0 10px;text-align:center}
 .warn{background:#fff3cd;color:#6b5200;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px}
@@ -173,7 +184,7 @@ const I18N = {
     note:'補充說明（選填）', notePh:'例如：IG 貼文的說明文字、朋友推薦…（抓不到內容時很有用）',
     addBtn:'✨ AI 整理並收藏', working:'處理中…', workingLong:'讀取網頁並請 AI 整理中（約 10–20 秒）', retry:'✨ 再試一次',
     saved:'已收藏：', pasteFirst:'請貼上連結或文字',
-    wishBtn:'⭐ 想做', doneBtn:'✅ 完成', source:'🔗 原文', map:'🗺️ 地圖', nav:'🧭 導航', share:'📤 分享',
+    wishBtn:'⭐ 想做', doneBtn:'✅ 完成', source:'🔗 原文', map:'🗺️ 地圖', nav:'🧭 導航', places:'景點', reanalyze:'🔄 重新分析', reanalyzing:'重新分析中…（約 15 秒）', share:'📤 分享',
     summary:'摘要', tags:'標籤', info:'資訊', ingredients:'材料', steps:'步驟', addToList:'加入清單', newListShort:'＋ 新清單',
     notes:'筆記（只有你看得到）', notesPh:'寫點什麼…', saveNote:'儲存筆記', del:'刪除', savedOk:'已儲存', saveFail:'儲存失敗',
     confirmDel:'再按一次確認刪除', deleted:'已刪除',
@@ -198,7 +209,7 @@ const I18N = {
     note:'หมายเหตุเพิ่มเติม (ไม่บังคับ)', notePh:'เช่น แคปชันโพสต์ IG, เพื่อนแนะนำ… (ช่วยได้มากถ้าดึงเนื้อหาไม่ได้)',
     addBtn:'✨ ให้ AI สรุปและบันทึก', working:'กำลังทำงาน…', workingLong:'กำลังอ่านหน้าเว็บและให้ AI สรุป (ประมาณ 10–20 วินาที)', retry:'✨ ลองอีกครั้ง',
     saved:'บันทึกแล้ว: ', pasteFirst:'กรุณาวางลิงก์หรือข้อความ',
-    wishBtn:'⭐ อยากทำ', doneBtn:'✅ ทำแล้ว', source:'🔗 ต้นฉบับ', map:'🗺️ แผนที่', nav:'🧭 นำทาง', share:'📤 แชร์',
+    wishBtn:'⭐ อยากทำ', doneBtn:'✅ ทำแล้ว', source:'🔗 ต้นฉบับ', map:'🗺️ แผนที่', nav:'🧭 นำทาง', places:'สถานที่', reanalyze:'🔄 วิเคราะห์ใหม่', reanalyzing:'กำลังวิเคราะห์ใหม่… (ประมาณ 15 วินาที)', share:'📤 แชร์',
     summary:'สรุป', tags:'แท็ก', info:'ข้อมูล', ingredients:'วัตถุดิบ', steps:'วิธีทำ', addToList:'เพิ่มในคอลเลกชัน', newListShort:'＋ ใหม่',
     notes:'โน้ต (เห็นเฉพาะคุณ)', notesPh:'เขียนอะไรสักหน่อย…', saveNote:'บันทึกโน้ต', del:'ลบ', savedOk:'บันทึกแล้ว', saveFail:'บันทึกไม่สำเร็จ',
     confirmDel:'กดอีกครั้งเพื่อยืนยันการลบ', deleted:'ลบแล้ว',
@@ -345,7 +356,7 @@ function cardHtml(i){
   const L=loc(i);
   const img=i.image?`style="background-image:url('${esc(i.image)}')"`:'';
   return `<button class="card" onclick="openItem('${i.id}')">
-    <div class="img" ${img}>${i.image?'':typeIcon(i.type)}</div>
+    <div class="img" ${img}>${i.image?'':typeIcon(i.type)}${(i.details&&i.details.places&&i.details.places.length>1)?`<span class="pcount">📍 ${i.details.places.length}</span>`:''}</div>
     <span class="badge">${typeIcon(i.type)} ${typeName(i.type)}</span>
     ${i.done?'<span class="done-mark">✓</span>':''}
     <div class="b"><div class="t">${i.pinned?'📌 ':''}${esc(L.title)}</div>
@@ -441,7 +452,9 @@ function itemList(){ return S.mode==='shared' ? (S.shared?S.shared.items:[]) : S
 function openItem(id, keep){
   const i=itemList().find(x=>x.id===id); if(!i) return;
   const L=loc(i), d=i.details||{}, owner=S.mode==='owner';
-  const mq = d.mapsQuery || (i.type==='place' ? [d.name||L.title, L.subtitle].filter(Boolean).join(' ') : '');
+  const places=(d.places||[]).filter(p=>p&&p.name);
+  const multi=places.length>1;
+  const mq = (places.length===1&&places[0].mapsQuery) || d.mapsQuery || (i.type==='place' ? [d.name||L.title, L.subtitle].filter(Boolean).join(' ') : '');
   const img=i.image?`style="background-image:url('${esc(i.image)}')"`:'';
   let h=`<div class="hero" ${img}>${i.image?'':typeIcon(i.type)}</div><div class="pad">
     <div class="ds">${typeIcon(i.type)} ${typeName(i.type)} · ${esc(i.source)}${owner&&isShared('item',i.id)?'<span class="shared-pill">🔗</span>':''}</div>
@@ -454,15 +467,20 @@ function openItem(id, keep){
       <button class="btn ${i.pinned?'on':''}" onclick="patch('${i.id}',{pinned:${!i.pinned}})">📌</button>
       <button class="btn pri" onclick="openShare('item','${i.id}')">${t('share')}</button>`;
   h+=`${i.url?`<a class="btn" href="${esc(i.url)}">${t('source')}</a>`:''}
-      ${mq?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mq)}">${t('nav')}</a>`:''}
+      ${mq&&!multi?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mq)}">${t('nav')}</a>`:''}
     </div></div>`;
   const top=h; h='<div class="pad" style="padding-top:0">';
   // 地點：直接在卡片裡顯示地圖（更新按鈕時地圖不重新載入）
-  const mapKey=mq?i.id+'|'+mq+'|'+S.lang:'';
-  const mapHtml=mq?`<div class="pad" style="padding-top:0;padding-bottom:0"><div class="mapbox" id="itMap" data-k="${esc(mapKey)}"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen
+  const hasPts=places.some(p=>p.lat!=null);
+  const mapKey=multi&&hasPts ? i.id+'|multi|'+places.length : (mq?i.id+'|'+mq+'|'+S.lang:'');
+  const mapHtml=multi&&hasPts ? `<div class="pad" style="padding-top:0;padding-bottom:0"><div class="mapbox" id="itMap" data-k="${esc(mapKey)}"><div id="lmap"></div></div></div>` : mq?`<div class="pad" style="padding-top:0;padding-bottom:0"><div class="mapbox" id="itMap" data-k="${esc(mapKey)}"><iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen
       src="https://maps.google.com/maps?q=${encodeURIComponent(mq)}&hl=${S.lang==='th'?'th':'zh-TW'}&z=16&output=embed"></iframe></div></div>`:'';
   if (owner) h+=`<div class="stars">${[1,2,3,4,5].map(n=>`<button class="${n<=i.rating?'on':''}" onclick="patch('${i.id}',{rating:${n===i.rating?0:n}})">★</button>`).join('')}</div>`;
   else if (i.rating) h+=`<div class="ds">${t('myRating')}：<span style="color:#f5b301">${'★'.repeat(i.rating)}</span>${'☆'.repeat(5-i.rating)}</div>`;
+  if (multi) h+=`<div class="sec">${t('places')} (${places.length})</div><div class="plist">${places.map((p,n)=>`
+      <div class="prow" onclick="focusPlace(${n})"><span class="pnum">${n+1}</span>
+        <div class="pinfo"><b>${esc(p.name)}</b>${(p[S.lang]||p.zh)?`<div class="ds">${esc(p[S.lang]||p.zh)}</div>`:''}${p.address?`<div class="paddr">${esc(p.address)}</div>`:''}</div>
+        <a class="btn pnav" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.lat!=null?p.lat+','+p.lng:p.mapsQuery)}" onclick="event.stopPropagation()">🧭</a></div>`).join('')}</div>`;
   h+=`${L.summary?`<div class="sec">${t('summary')}</div><div>${esc(L.summary)}</div>`:''}
     ${L.tags.length?`<div class="sec">${t('tags')}</div><div class="tagl">${L.tags.map(tg=>`<span style="cursor:pointer" data-t="${esc(tg)}" onclick="tagSearch(this.dataset.t)">#${esc(tg)}</span>`).join('')}</div>`:''}
     ${L.facts.length?`<div class="sec">${t('info')}</div><div class="facts">${L.facts.map(f=>`<div><b>${esc(f.label)}</b><span>${esc(f.value)}</span></div>`).join('')}</div>`:''}
@@ -476,6 +494,7 @@ function openItem(id, keep){
     <div class="sec">${t('notes')}</div>
     <textarea id="noteBox" rows="3" placeholder="${esc(t('notesPh'))}">${esc(i.notes)}</textarea>
     <div class="row"><button class="btn" onclick="patch('${i.id}',{notes:document.getElementById('noteBox').value},true)">${t('saveNote')}</button>
+    <button class="btn" id="reBtn" onclick="reanalyze('${i.id}')">${t('reanalyze')}</button>
     <button class="btn danger" onclick="delItem('${i.id}')">${t('del')}</button></div>`;
   h+='</div>';
   const m=document.getElementById('itMap');
@@ -483,6 +502,47 @@ function openItem(id, keep){
     document.getElementById('itTop').innerHTML=top; document.getElementById('itBot').innerHTML=h; return;
   }
   openSheet(`<div id="itTop">${top}</div>${mapHtml}<div id="itBot">${h}</div>`, keep);
+  if (multi&&hasPts) loadLeaflet().then(()=>drawMap(places)).catch(()=>{});
+}
+
+// ---------- 多景點地圖（Leaflet + OpenStreetMap） ----------
+let _leaflet=null;
+function loadLeaflet(){
+  if (window.L && window.L.map) return Promise.resolve();
+  if (_leaflet) return _leaflet;
+  _leaflet=new Promise((res,rej)=>{
+    const c=document.createElement('link'); c.rel='stylesheet'; c.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(c);
+    const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s);
+  });
+  return _leaflet;
+}
+function drawMap(places){
+  const el=document.getElementById('lmap'); if(!el||el._done) return; el._done=true;
+  const Lf=window.L, map=Lf.map(el,{scrollWheelZoom:false});
+  Lf.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  const markers=[], pts=[];
+  places.forEach((p,n)=>{
+    if (p.lat==null) { markers.push(null); return; }
+    const mk=Lf.marker([p.lat,p.lng],{icon:Lf.divIcon({className:'lpin',html:`<span>${n+1}</span>`,iconSize:[28,28],iconAnchor:[14,14]})})
+      .addTo(map).bindPopup(`<b>${esc(p.name)}</b>${(p[S.lang]||p.zh)?'<br>'+esc(p[S.lang]||p.zh):''}<br><a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank">${t('nav')}</a>`);
+    markers.push(mk); pts.push([p.lat,p.lng]);
+  });
+  if (pts.length===1) map.setView(pts[0],14); else map.fitBounds(pts,{padding:[30,30]});
+  S._map=map; S._markers=markers;
+  setTimeout(()=>{ map.invalidateSize(); if(pts.length>1) map.fitBounds(pts,{padding:[30,30]}); },350);
+}
+function focusPlace(n){
+  const mk=S._markers&&S._markers[n]; if(!mk) return;
+  document.getElementById('itMap').scrollIntoView({behavior:'smooth',block:'center'});
+  S._map.flyTo(mk.getLatLng(),15,{duration:.6}); setTimeout(()=>mk.openPopup(),650);
+}
+async function reanalyze(id){
+  const b=document.getElementById('reBtn'); if(b){ b.disabled=true; b.textContent=t('reanalyzing'); }
+  try{
+    const n=await own('apiReanalyze',id);
+    const idx=S.items.findIndex(x=>x.id===id); if(idx>=0) S.items[idx]=n;
+    render(); openItem(id); toast(t('savedOk'));
+  }catch(e){ toast(e.message); if(b){ b.disabled=false; b.textContent=t('reanalyze'); } }
 }
 
 async function patch(id,p,quiet){

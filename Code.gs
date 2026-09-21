@@ -52,7 +52,7 @@ function doPost(e) {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const API = {
       apiLoad, apiAdd, apiUpdate, apiDelete, apiAddCollection, apiDeleteCollection,
-      apiShare, apiUnshare, apiShared, apiAsk, apiPing
+      apiShare, apiUnshare, apiShared, apiAsk, apiPing, apiReanalyze
     };
     const fn = API[req.fn];
     if (!fn) throw new Error('unknown function');
@@ -162,9 +162,8 @@ function apiLoad(k) {
   return { items, collections, shares, hasKey: !!getKey_(), baseUrl: ScriptApp.getService().getUrl() };
 }
 
-/** 貼上連結（或文字）→ 抓網頁 → AI 抽取（中文＋泰文）→ 存檔 */
-function apiAdd(k, input, extraText) {
-  auth_(k);
+/** 抓網頁 → AI 抽取（中文＋泰文）→ 地點定位，回傳要存的欄位 */
+function analyze_(input, extraText) {
   input = String(input || '').trim();
   extraText = String(extraText || '').trim();
   if (!input && !extraText) throw new Error('empty');
@@ -177,22 +176,74 @@ function apiAdd(k, input, extraText) {
 
   const ai = extract_(page);
   const zh = ai.zh || {}, th = ai.th || {};
-  const item = {
-    id: Utilities.getUuid().slice(0, 8),
-    createdAt: new Date(),
+  const places = geocodePlaces_(ai.places || []);
+  let mapsQuery = ai.mapsQuery || page.mapsQuery || '';
+  if (!mapsQuery && places.length === 1) mapsQuery = places[0].mapsQuery;
+  let type = TYPES.indexOf(ai.type) >= 0 ? ai.type : 'other';
+  if (places.length > 1 && (type === 'other' || type === 'video' || type === 'article')) type = 'place';
+  return {
     url: page.url || '',
-    type: TYPES.indexOf(ai.type) >= 0 ? ai.type : 'other',
+    type: type,
     title: zh.title || ai.name || page.title || '(untitled)',
     subtitle: zh.subtitle || '',
     summary: zh.summary || '',
     image: page.image || '',
     tags: (zh.tags || []).slice(0, 8).join(','),
-    details: JSON.stringify({ name: ai.name || '', mapsQuery: ai.mapsQuery || page.mapsQuery || '', zh: zh, th: th }),
-    collections: '', wishlist: true, done: false, rating: 0, pinned: false,
-    notes: extraText, source: page.url ? hostOf_(page.url) : 'text'
+    details: JSON.stringify({ name: ai.name || '', mapsQuery: mapsQuery, places: places, zh: zh, th: th }),
+    source: page.url ? hostOf_(page.url) : 'text'
   };
+}
+
+/** 貼上連結（或文字）→ 分析 → 存檔 */
+function apiAdd(k, input, extraText) {
+  auth_(k);
+  const r = analyze_(input, extraText);
+  const item = Object.assign({
+    id: Utilities.getUuid().slice(0, 8), createdAt: new Date(),
+    collections: '', wishlist: true, done: false, rating: 0, pinned: false, notes: String(extraText || '').trim()
+  }, r);
   sheet_('Items').appendRow(ITEM_COLS.map(c => item[c]));
   return toClientItem_(item);
+}
+
+/** 重新分析一筆收藏（保留想做/完成、星等、筆記、清單） */
+function apiReanalyze(k, id) {
+  auth_(k);
+  const row = findRow_('Items', id);
+  if (row < 0) throw new Error('not found');
+  const sh = sheet_('Items');
+  const vals = sh.getRange(row, 1, 1, ITEM_COLS.length).getValues()[0];
+  const o = {}; ITEM_COLS.forEach((c, i) => o[c] = vals[i]);
+  const r = analyze_(o.url || o.notes, o.url ? o.notes : '');
+  ['type', 'title', 'subtitle', 'summary', 'image', 'tags', 'details', 'source'].forEach(c => {
+    if (c === 'image' && !r.image) return;
+    o[c] = r[c];
+    sh.getRange(row, ITEM_COLS.indexOf(c) + 1).setValue(r[c]);
+  });
+  return toClientItem_(o);
+}
+
+/** 用 Apps Script 內建的 Google 地圖服務把地點轉成座標（免 API Key） */
+function geocodePlaces_(places) {
+  const out = [];
+  const seen = {};
+  (places || []).slice(0, 20).forEach(p => {
+    if (!p || !(p.name || p.mapsQuery)) return;
+    const q = String(p.mapsQuery || p.name).trim();
+    if (seen[q]) return; seen[q] = 1;
+    const place = { name: p.name || q, mapsQuery: q, zh: p.zh || '', th: p.th || '' };
+    try {
+      const res = Maps.newGeocoder().setLanguage('zh-TW').geocode(q);
+      const r = res && res.results && res.results[0];
+      if (r) {
+        place.lat = r.geometry.location.lat;
+        place.lng = r.geometry.location.lng;
+        place.address = r.formatted_address || '';
+      }
+    } catch (e) { Logger.log('geocode 失敗：' + q + '｜' + e.message); }
+    out.push(place);
+  });
+  return out;
 }
 
 function apiUpdate(k, id, patch) {
@@ -447,7 +498,10 @@ function fetchSocial_(url) {
   const add = (label, v) => { v = String(v || '').trim(); if (v && out.text.indexOf(v) < 0) out.text += (out.text ? '\n' : '') + label + v; };
 
   if (p === 'tiktok') {
-    const j = getJson_('https://www.tiktok.com/oembed?url=' + encodeURIComponent(url));
+    // 圖文貼文（/photo/）官方 API 不收，換成 /video/ 就能取得說明文字和封面
+    const j = getJson_('https://www.tiktok.com/oembed?url=' + encodeURIComponent(url.replace('/photo/', '/video/'))) ||
+              getJson_('https://www.tiktok.com/oembed?url=' + encodeURIComponent(url));
+    if (/\/photo\//.test(url)) add('Format: ', 'TikTok photo carousel (several photos)');
     if (j) {
       out.title = j.title; out.image = j.thumbnail_url;
       add('TikTok by @', j.author_unique_id || j.author_name);
@@ -591,6 +645,15 @@ function extract_(page) {
       type: { type: 'STRING', enum: TYPES },
       name: { type: 'STRING', description: 'Original proper name as written in the source' },
       mapsQuery: { type: 'STRING', description: 'Places only: "name + city" for Google Maps search' },
+      places: {
+        type: 'ARRAY', description: 'EVERY specific place mentioned (attractions, cafes, restaurants, hotels, markets…), in order',
+        items: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'Place name as commonly known (original language)' },
+          mapsQuery: { type: 'STRING', description: 'Name + district/city + country, good for Google Maps search' },
+          zh: { type: 'STRING', description: 'One short line in Traditional Chinese' },
+          th: { type: 'STRING', description: 'One short line in Thai' }
+        }, required: ['name', 'mapsQuery'] }
+      },
       zh: langBlock('All text in Traditional Chinese (繁體中文)'),
       th: langBlock('All text in Thai (ภาษาไทย)')
     },
@@ -602,7 +665,9 @@ function extract_(page) {
     `- type: one of ${TYPES.join(', ')}.\n` +
     '- Fill BOTH the zh (Traditional Chinese) and th (Thai) blocks with the same information, naturally written in each language.\n' +
     '- Keep proper nouns (shop names, addresses, film titles) in their original form.\n' +
-    '- If the page lists several places/items, pick the main one and mention others in the summary.\n' +
+    '- PLACES: list EVERY specific place mentioned in the caption, hashtags, text or image (attractions, waterfalls, bridges, cafes, restaurants, hotels, markets) in `places`, each with name, mapsQuery (name + district/city + country), zh and th one-line descriptions. Hashtags like #น้ำตกเอราวัณ or #มีนาคาเฟ่ are place names. Do not include a whole province/city as a place if more specific places exist.\n' +
+    '- If it is a trip / itinerary / list with several places: type = "place", title = the trip (e.g. "北碧府 4天3夜" / "กาญจนบุรี 4 วัน 3 คืน"), summary mentions the route; mapsQuery = the main area.\n' +
+    '- If the page lists several non-place items, pick the main one and mention others in the summary.\n' +
     '- Do not invent facts you are unsure about.\n\n' +
     (page.social ? `- This is a ${page.social} post. The caption and the attached image are the main content; identify the place/dish/product/etc. being shown. Use the post caption language only as a source, still output zh and th.\n` : '') +
     (page.mapsQuery ? `- mapsQuery should be: ${page.mapsQuery}\n` : '') +
@@ -613,7 +678,7 @@ function extract_(page) {
   const img = page.social ? imagePart_(page.image) : null;
   const req = (withSchema) => gemini_({
     contents: [{ role: 'user', parts: (img ? [img] : []).concat([{ text: prompt + (withSchema ? '' :
-      '\n\nReturn ONLY one JSON object with keys: type, name, mapsQuery, zh, th. ' +
+      '\n\nReturn ONLY one JSON object with keys: type, name, mapsQuery, places[{name,mapsQuery,zh,th}], zh, th. ' +
       'zh and th each have: title, subtitle (one short line, under 40 characters), summary (2-4 sentences), tags[] (3-6), facts[{label,value}], ingredients[], steps[]. Keep every field concise; never repeat phrases.') }]) }],
     generationConfig: withSchema
       ? { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2, maxOutputTokens: 6000 }
