@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<base target="_blank">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拾藏 Stash</title>
+<meta name="description" content="貼上連結，AI 幫你整理成收藏卡片｜วางลิงก์ แล้วให้ AI สรุปเป็นการ์ด">
+<meta property="og:title" content="拾藏 Stash">
+<meta property="og:description" content="朋友分享給你的收藏｜รายการที่เพื่อนแชร์ให้คุณ">
+<meta property="og:image" content="icon-512.png">
+<meta name="theme-color" content="#ff5a36">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="拾藏">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="config.js"></script>
+<style>
+:root{
+  --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --muted:#8a8680; --line:#e7e4de;
+  --accent:#ff5a36; --accent-ink:#fff; --chip:#efece6; --shadow:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121212; --card:#1d1d1d; --ink:#f2f0ec; --muted:#9a968f; --line:#2c2c2c;
+  --chip:#262626; --shadow:0 1px 2px rgba(0,0,0,.4);
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Segoe UI",sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%}
+a{color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(14px + env(safe-area-inset-top)) 16px 8px}
+h1{font-size:26px;margin:0 0 10px;letter-spacing:-.5px}
+.search{display:flex;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:6px 12px !important;border-radius:999px;background:var(--chip);font-size:13px;white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--bg)}
+main{padding:6px 16px 110px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.card{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);text-align:left;display:flex;flex-direction:column;position:relative}
+.card .img{aspect-ratio:4/3;background:var(--chip) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:40px}
+.card .b{padding:10px 12px 12px}
+.card .t{font-weight:650;font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .s{color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:3px 8px;border-radius:999px;backdrop-filter:blur(6px)}
+.done-mark{position:absolute;top:8px;right:8px;background:#2fa36b;color:#fff;font-size:11px;padding:3px 8px;border-radius:999px}
+.empty{text-align:center;color:var(--muted);padding:60px 20px}
+.empty .big{font-size:48px}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:6}
+nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--muted);gap:2px}
+nav.tabs button.on{color:var(--ink)}
+nav.tabs .ic{font-size:20px}
+.fab{position:fixed;right:18px;bottom:calc(74px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:30px;box-shadow:0 8px 24px rgba(255,90,54,.4);z-index:7}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92vh;overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;z-index:21;transform:translateY(100%);transition:transform .25s ease;padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+.sheet.open{transform:none}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto}
+.pad{padding:8px 18px}
+.hero{width:100%;aspect-ratio:16/10;background:var(--chip) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:64px}
+.dt{font-size:22px;font-weight:700;margin:12px 0 2px;letter-spacing:-.3px}
+.ds{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.btn{text-decoration:none;display:inline-block;padding:10px 14px;border-radius:12px;background:var(--chip);font-weight:600;font-size:14px}
+.btn.pri{background:var(--accent);color:var(--accent-ink)}
+.btn.on{background:var(--ink);color:var(--bg)}
+.btn.danger{color:#d33}
+.sec{margin:16px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.facts{background:var(--card);border-radius:14px;overflow:hidden}
+.facts div{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px}
+.facts div:last-child{border:0}
+.facts b{flex:none;width:84px;color:var(--muted);font-weight:500}
+ol,ul{padding-left:20px;margin:6px 0}
+li{margin:4px 0}
+.stars button{font-size:26px;padding:0 2px;color:var(--line)}
+.stars button.on{color:#f5b301}
+.tagl{display:flex;gap:6px;flex-wrap:wrap}
+.tagl span{font-size:12px;background:var(--chip);padding:4px 10px;border-radius:999px}
+.colrow{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.colrow .e{font-size:28px}
+.colrow .n{flex:1;font-weight:600}
+.colrow .c{color:var(--muted);font-size:13px}
+.loading{display:flex;align-items:center;gap:10px;color:var(--muted);padding:14px 0}
+.spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:140px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.show{opacity:1}
+.answer{background:var(--card);border-radius:14px;padding:14px;white-space:pre-wrap;box-shadow:var(--shadow)}
+.answer .ref{color:var(--accent);text-decoration:underline;cursor:pointer}
+.keybox{max-width:420px;margin:30px auto;text-align:center}
+.keybox input{margin:14px 0 10px;text-align:center}
+.warn{background:#fff3cd;color:#6b5200;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px}
+.hdr{display:flex;align-items:center;gap:10px}
+.hdr h1{flex:1;margin:0 0 10px}
+.lang{display:flex;background:var(--chip);border-radius:999px;padding:3px;margin-bottom:10px}
+.lang button{padding:5px 10px !important;border-radius:999px;font-size:13px;color:var(--muted)}
+.lang button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.sharebox{display:flex;gap:8px;align-items:center}
+.sharebox input{flex:1;font-size:13px;padding:10px}
+.sharegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+.sharegrid a,.sharegrid button{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;text-decoration:none;color:var(--ink)}
+.sharegrid .ico{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;font-weight:800;letter-spacing:-.5px}
+.shared-pill{display:inline-block;font-size:11px;background:#2fa36b;color:#fff;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.banner{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:14px;box-shadow:var(--shadow);font-size:13px;color:var(--muted)}
+footer.by{text-align:center;color:var(--muted);font-size:12px;padding:24px 0}
+[lang=th] body{font-family:-apple-system,BlinkMacSystemFont,"Sukhumvit Set","Noto Sans Thai","Thonburi","Segoe UI",sans-serif}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <h1 id="h1"></h1>
+    <div class="lang" id="langSw">
+      <button data-l="zh" onclick="setLang('zh')">中文</button>
+      <button data-l="th" onclick="setLang('th')">ไทย</button>
+    </div>
+  </div>
+  <div class="search" id="searchBox"><input id="q" oninput="render()"></div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="main"><div class="loading"><div class="spin"></div></div></main>
+
+<button class="fab" id="fab" onclick="openAdd()" aria-label="+">＋</button>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="all" class="on" onclick="setTab('all')"><span class="ic">🗂️</span><span data-i="tabAll"></span></button>
+  <button data-tab="lists" onclick="setTab('lists')"><span class="ic">📚</span><span data-i="tabLists"></span></button>
+  <button data-tab="ask" onclick="setTab('ask')"><span class="ic">✨</span><span data-i="tabAsk"></span></button>
+</nav>
+
+<div class="sheet-bg" id="bg" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- 啟動參數（網址 ?s= 分享、?add= 新增、#k= 密鑰、分享選單 text/url） ----
+const KEY_STORE='stash_key';
+function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){ return null; } }
+const BOOT=(function(){
+  const q=new URLSearchParams(location.search), h=new URLSearchParams(location.hash.slice(1));
+  if (h.get('k')){ store(KEY_STORE, h.get('k').trim()); history.replaceState(null,'',location.pathname+location.search); }
+  // 從手機分享選單進來：text 裡可能同時有說明文字和網址
+  let add=q.get('add')||q.get('url')||'', note='';
+  const shared=[q.get('title'),q.get('text')].filter(Boolean).join('\n');
+  if (shared){
+    const m=shared.match(/https?:\/\/\S+/);
+    if (!add) add=m?m[0]:'';
+    note=shared.replace(/https?:\/\/\S+/g,'').trim();
+    if (!add && !note) note=shared;
+  }
+  const key=store(KEY_STORE)||'';
+  return { mode: q.get('s')?'shared':(key?'owner':'locked'), key, share:q.get('s')||'', add, note, lang:q.get('lang')||'' };
+})();
+if ((BOOT.add||BOOT.note) && history.replaceState) history.replaceState(null,'',location.pathname);
+
+// ================= i18n =================
+const I18N = {
+  zh: {
+    app:'拾藏', tabAll:'收藏', tabLists:'清單', tabAsk:'問 AI', loading:'載入中…',
+    search:'搜尋標題、標籤、摘要…', all:'全部', wish:'⭐ 想做', done:'✅ 完成', pin:'📌 釘選',
+    noMatch:'沒有符合的項目', emptyAll:'按右下角 ＋ 貼上任何連結<br>餐廳、食譜、電影、文章、YouTube…<br>AI 會自動整理成卡片',
+    emptyLists:'把收藏整理成清單，例如「清邁旅行」「週末想煮」', newList:'＋ 新增清單', items:'項',
+    delList:'刪除此清單', shareList:'分享清單',
+    addTitle:'新增收藏', addHint:'貼上連結（IG、TikTok、Google Maps、食譜網站、YouTube、文章…）或直接貼文字',
+    note:'補充說明（選填）', notePh:'例如：IG 貼文的說明文字、朋友推薦…（抓不到內容時很有用）',
+    addBtn:'✨ AI 整理並收藏', working:'處理中…', workingLong:'讀取網頁並請 AI 整理中（約 10–20 秒）', retry:'✨ 再試一次',
+    saved:'已收藏：', pasteFirst:'請貼上連結或文字',
+    wishBtn:'⭐ 想做', doneBtn:'✅ 完成', source:'🔗 原文', map:'🗺️ 地圖', share:'📤 分享',
+    summary:'摘要', tags:'標籤', info:'資訊', ingredients:'材料', steps:'步驟', addToList:'加入清單', newListShort:'＋ 新清單',
+    notes:'筆記（只有你看得到）', notesPh:'寫點什麼…', saveNote:'儲存筆記', del:'刪除', savedOk:'已儲存', saveFail:'儲存失敗',
+    confirmDel:'再按一次確認刪除', deleted:'已刪除',
+    newListTitle:'新增清單', listPh:'清單名稱，例如：清邁旅行', create:'建立',
+    askHint:'根據你的收藏回答問題', askPh:'例如：這週末在曼谷可以去哪家收藏的咖啡廳？',
+    askChips:['週末想去哪？','還沒看的電影','晚餐煮什麼？','幫我規劃一日行程'], askBtn:'✨ 問問看', thinking:'思考中…',
+    noKey:'⚠️ 尚未設定 GEMINI_API_KEY：到 Apps Script「專案設定 → 指令碼屬性」新增。',
+    shareTitle:'分享給朋友', shareDesc:'朋友打開連結就能看（不用登入，看不到你的筆記）。',
+    copy:'複製', copied:'已複製連結', more:'更多', stopShare:'停止分享（連結失效）', stopped:'已停止分享',
+    shareMsgItem:'推薦給你：', shareMsgList:'分享我的清單：', creatingLink:'產生連結中…',
+    sharedBy:'朋友分享給你的收藏', sharedFooter:'由「拾藏」分享', linkInvalid:'這個連結已失效或不存在',
+    notOwner:'第一次使用：請貼上你的密鑰（在 Apps Script 執行 showMyLinks 就會顯示）。', keyPh:'貼上密鑰', keyBtn:'開始使用', keyBad:'密鑰不正確，請再確認一次', noApi:'尚未設定 API 網址：請編輯 config.js，把 API_URL 換成你的 Apps Script /exec 網址。', logout:'登出這台裝置',
+    myRating:'評分'
+  },
+  th: {
+    app:'Stash', tabAll:'รายการ', tabLists:'คอลเลกชัน', tabAsk:'ถาม AI', loading:'กำลังโหลด…',
+    search:'ค้นหาชื่อ แท็ก สรุป…', all:'ทั้งหมด', wish:'⭐ อยากทำ', done:'✅ ทำแล้ว', pin:'📌 ปักหมุด',
+    noMatch:'ไม่พบรายการที่ตรงกัน', emptyAll:'กด ＋ มุมขวาล่าง แล้ววางลิงก์อะไรก็ได้<br>ร้านอาหาร สูตรอาหาร หนัง บทความ YouTube…<br>AI จะสรุปเป็นการ์ดให้อัตโนมัติ',
+    emptyLists:'จัดรายการเป็นคอลเลกชัน เช่น "เที่ยวเชียงใหม่" "เมนูสุดสัปดาห์"', newList:'＋ สร้างคอลเลกชัน', items:'รายการ',
+    delList:'ลบคอลเลกชันนี้', shareList:'แชร์คอลเลกชัน',
+    addTitle:'เพิ่มรายการ', addHint:'วางลิงก์ (IG, TikTok, Google Maps, เว็บสูตรอาหาร, YouTube, บทความ…) หรือวางข้อความ',
+    note:'หมายเหตุเพิ่มเติม (ไม่บังคับ)', notePh:'เช่น แคปชันโพสต์ IG, เพื่อนแนะนำ… (ช่วยได้มากถ้าดึงเนื้อหาไม่ได้)',
+    addBtn:'✨ ให้ AI สรุปและบันทึก', working:'กำลังทำงาน…', workingLong:'กำลังอ่านหน้าเว็บและให้ AI สรุป (ประมาณ 10–20 วินาที)', retry:'✨ ลองอีกครั้ง',
+    saved:'บันทึกแล้ว: ', pasteFirst:'กรุณาวางลิงก์หรือข้อความ',
+    wishBtn:'⭐ อยากทำ', doneBtn:'✅ ทำแล้ว', source:'🔗 ต้นฉบับ', map:'🗺️ แผนที่', share:'📤 แชร์',
+    summary:'สรุป', tags:'แท็ก', info:'ข้อมูล', ingredients:'วัตถุดิบ', steps:'วิธีทำ', addToList:'เพิ่มในคอลเลกชัน', newListShort:'＋ ใหม่',
+    notes:'โน้ต (เห็นเฉพาะคุณ)', notesPh:'เขียนอะไรสักหน่อย…', saveNote:'บันทึกโน้ต', del:'ลบ', savedOk:'บันทึกแล้ว', saveFail:'บันทึกไม่สำเร็จ',
+    confirmDel:'กดอีกครั้งเพื่อยืนยันการลบ', deleted:'ลบแล้ว',
+    newListTitle:'สร้างคอลเลกชัน', listPh:'ชื่อคอลเลกชัน เช่น เที่ยวเชียงใหม่', create:'สร้าง',
+    askHint:'ถามคำถามจากรายการที่คุณบันทึกไว้', askPh:'เช่น สุดสัปดาห์นี้ไปคาเฟ่ไหนในกรุงเทพฯ ดี?',
+    askChips:['สุดสัปดาห์ไปไหนดี?','หนังที่ยังไม่ได้ดู','มื้อเย็นทำอะไรดี?','วางแผนเที่ยว 1 วัน'], askBtn:'✨ ถามเลย', thinking:'กำลังคิด…',
+    noKey:'⚠️ ยังไม่ได้ตั้งค่า GEMINI_API_KEY: ไปที่ Apps Script → Project settings → Script properties',
+    shareTitle:'แชร์ให้เพื่อน', shareDesc:'เพื่อนเปิดลิงก์ดูได้เลย (ไม่ต้องล็อกอิน และจะไม่เห็นโน้ตของคุณ)',
+    copy:'คัดลอก', copied:'คัดลอกลิงก์แล้ว', more:'อื่นๆ', stopShare:'หยุดแชร์ (ลิงก์จะใช้ไม่ได้)', stopped:'หยุดแชร์แล้ว',
+    shareMsgItem:'แนะนำให้ลอง: ', shareMsgList:'คอลเลกชันของฉัน: ', creatingLink:'กำลังสร้างลิงก์…',
+    sharedBy:'รายการที่เพื่อนแชร์ให้คุณ', sharedFooter:'แชร์ผ่าน Stash', linkInvalid:'ลิงก์นี้หมดอายุหรือไม่มีอยู่',
+    notOwner:'ใช้งานครั้งแรก: วางรหัสของคุณ (ดูได้จาก showMyLinks ใน Apps Script)', keyPh:'วางรหัส', keyBtn:'เริ่มใช้งาน', keyBad:'รหัสไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง', noApi:'ยังไม่ได้ตั้งค่า API: แก้ไฟล์ config.js ใส่ลิงก์ /exec ของ Apps Script', logout:'ออกจากระบบในเครื่องนี้',
+    myRating:'คะแนน'
+  }
+};
+const TYPE_META = {
+  place:['📍','地點','สถานที่'], recipe:['🍳','食譜','สูตรอาหาร'], film:['🎬','電影','ภาพยนตร์'], tv:['📺','影集','ซีรีส์'],
+  book:['📖','書','หนังสือ'], product:['🛍️','商品','สินค้า'], article:['📰','文章','บทความ'], video:['▶️','影片','วิดีโอ'],
+  music:['🎵','音樂','เพลง'], event:['🎟️','活動','อีเวนต์'], software:['💻','軟體','ซอฟต์แวร์'], workout:['💪','運動','ออกกำลังกาย'],
+  other:['🔖','其他','อื่นๆ']
+};
+
+function detectLang(){
+  if (BOOT.lang==='th'||BOOT.lang==='zh') return BOOT.lang;
+  try{ const s=localStorage.getItem('stash_lang'); if(s) return s; }catch(e){}
+  return /^th/i.test(navigator.language||'') ? 'th' : 'zh';
+}
+const S = { mode:BOOT.mode, key:BOOT.key, lang:detectLang(), items:[], collections:[], shares:[],
+  tab:'all', type:'', status:'', col:'', hasKey:true, baseUrl:'', shared:null };
+
+function t(k){ return (I18N[S.lang]||I18N.zh)[k] ?? I18N.zh[k] ?? k; }
+function typeName(ty){ const m=TYPE_META[ty]||TYPE_META.other; return m[S.lang==='th'?2:1]; }
+function typeIcon(ty){ return (TYPE_META[ty]||TYPE_META.other)[0]; }
+
+// 取得目前語言的卡片內容（舊資料只有中文時自動退回）
+function loc(i){
+  const d=i.details||{}, L=d[S.lang]||d.zh||{};
+  return {
+    title: L.title || i.title, subtitle: L.subtitle || i.subtitle, summary: L.summary || i.summary,
+    tags: L.tags || i.tags || [], facts: L.facts || d.facts || [],
+    ingredients: L.ingredients || d.ingredients || [], steps: L.steps || d.steps || []
+  };
+}
+
+function setLang(l){
+  S.lang=l; try{ localStorage.setItem('stash_lang', l); }catch(e){}
+  applyStatic(); render(); closeSheet();
+}
+function applyStatic(){
+  document.documentElement.lang = S.lang==='th'?'th':'zh-Hant';
+  document.querySelectorAll('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));
+  document.getElementById('q').placeholder=t('search');
+  document.querySelectorAll('#langSw button').forEach(b=>b.classList.toggle('on', b.dataset.l===S.lang));
+}
+
+// ================= helpers =================
+// 呼叫 Apps Script JSON API（text/plain 避免 CORS 預檢）
+async function call(fn, ...args){
+  if (!window.API_URL || !/^https:\/\/script\.google\.com\/.+\/exec$/.test(window.API_URL)) throw new Error(t('noApi'));
+  const r = await fetch(window.API_URL, { method:'POST', redirect:'follow',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ fn, args }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error||'error');
+  return j.data;
+}
+// 擁有者 API 自動帶上密鑰
+function own(fn, ...args){ return call(fn, S.key, ...args); }
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._h); el._h=setTimeout(()=>el.classList.remove('show'),2600); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function isShared(kind,id){ return S.shares.some(s=>s.kind===kind && s.targetId===id); }
+
+// ================= boot =================
+async function load(){
+  applyStatic();
+  if (S.mode==='shared') return loadShared();
+  if (S.mode!=='owner') return showKeyScreen();
+  try{
+    Object.assign(S, await own('apiLoad'));
+    render();
+    if (BOOT.add||BOOT.note) openAdd(BOOT.add, true, BOOT.note);
+  }catch(e){
+    if (/unauthorized/.test(e.message)){ store(KEY_STORE,null); S.key=''; S.mode='locked'; return showKeyScreen(true); }
+    document.getElementById('main').innerHTML='<div class="empty">'+esc(e.message)+'</div>';
+  }
+}
+function showKeyScreen(bad){
+  hideChrome();
+  document.getElementById('h1').textContent=t('app');
+  document.getElementById('main').innerHTML=`<div class="keybox"><div class="empty" style="padding:20px 0 0"><div class="big">🔑</div></div>
+    <div class="ds">${esc(t('notOwner'))}</div>
+    ${bad?`<div class="warn" style="margin-top:12px">${esc(t('keyBad'))}</div>`:''}
+    <input id="keyIn" placeholder="${esc(t('keyPh'))}" autocomplete="off">
+    <button class="btn pri" style="width:100%" onclick="saveKey()">${esc(t('keyBtn'))}</button></div>`;
+}
+async function saveKey(){
+  const k=document.getElementById('keyIn').value.trim(); if(!k) return;
+  try{ await call('apiPing', k); }catch(e){ return showKeyScreen(/unauthorized/.test(e.message)) || toast(e.message); }
+  store(KEY_STORE,k); location.reload();
+}
+function logout(){ store(KEY_STORE,null); location.reload(); }
+function hideChrome(){
+  ['tabs','fab','searchBox','chips'].forEach(id=>document.getElementById(id).style.display='none');
+}
+
+// ================= owner UI =================
+function setTab(tab){
+  S.tab=tab; S.col='';
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
+  render();
+}
+
+function haystack(i){
+  const d=i.details||{};
+  return [i.title,i.subtitle,i.summary,(i.tags||[]).join(' '),i.notes,
+    d.zh&&JSON.stringify(d.zh), d.th&&JSON.stringify(d.th)].join(' ').toLowerCase();
+}
+function filtered(list){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  return list.filter(i=>{
+    if (S.col && (i.collections||[]).indexOf(S.col)<0) return false;
+    if (S.type && i.type!==S.type) return false;
+    if (S.status==='wish' && i.done) return false;
+    if (S.status==='done' && !i.done) return false;
+    if (S.status==='pin' && !i.pinned) return false;
+    if (q && haystack(i).indexOf(q)<0) return false;
+    return true;
+  }).sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+}
+
+function renderChips(list){
+  const counts={}; list.forEach(i=>counts[i.type]=(counts[i.type]||0)+1);
+  const shared = S.mode==='shared';
+  let h=`<button class="chip ${!S.type&&!S.status?'on':''}" onclick="S.type='';S.status='';render()">${t('all')} ${list.length}</button>`;
+  h+=`<button class="chip ${S.status==='wish'?'on':''}" onclick="S.status=S.status==='wish'?'':'wish';render()">${t('wish')}</button>`;
+  h+=`<button class="chip ${S.status==='done'?'on':''}" onclick="S.status=S.status==='done'?'':'done';render()">${t('done')}</button>`;
+  if (!shared) h+=`<button class="chip ${S.status==='pin'?'on':''}" onclick="S.status=S.status==='pin'?'':'pin';render()">${t('pin')}</button>`;
+  Object.keys(TYPE_META).filter(ty=>counts[ty]).forEach(ty=>{
+    h+=`<button class="chip ${S.type===ty?'on':''}" onclick="S.type=S.type==='${ty}'?'':'${ty}';render()">${typeIcon(ty)} ${typeName(ty)} ${counts[ty]}</button>`;
+  });
+  document.getElementById('chips').innerHTML=h;
+}
+
+function cardHtml(i){
+  const L=loc(i);
+  const img=i.image?`style="background-image:url('${esc(i.image)}')"`:'';
+  return `<button class="card" onclick="openItem('${i.id}')">
+    <div class="img" ${img}>${i.image?'':typeIcon(i.type)}</div>
+    <span class="badge">${typeIcon(i.type)} ${typeName(i.type)}</span>
+    ${i.done?'<span class="done-mark">✓</span>':''}
+    <div class="b"><div class="t">${i.pinned?'📌 ':''}${esc(L.title)}</div>
+    <div class="s">${esc(L.subtitle||i.source)}</div></div></button>`;
+}
+
+function gridHtml(list, all){
+  if (!list.length) return all.length ? `<div class="empty"><div class="big">🔍</div>${t('noMatch')}</div>`
+    : `<div class="empty"><div class="big">✨</div>${t('emptyAll')}</div>`;
+  return '<div class="grid">'+list.map(cardHtml).join('')+'</div>';
+}
+
+function render(){
+  if (S.mode==='shared') return renderShared();
+  if (S.mode!=='owner') return;
+  const main=document.getElementById('main'), h1=document.getElementById('h1');
+  const showFilters=S.tab==='all'||(S.tab==='lists'&&S.col);
+  document.getElementById('searchBox').style.display=showFilters?'':'none';
+  document.getElementById('chips').style.display=showFilters?'':'none';
+  document.getElementById('fab').style.display=S.tab==='ask'?'none':'';
+  const warn=S.hasKey?'':`<div class="warn">${t('noKey')}</div>`;
+
+  if (S.tab==='ask'){ h1.textContent=t('tabAsk'); renderAsk(main,warn); return; }
+
+  if (S.tab==='lists'&&!S.col){
+    h1.textContent=t('tabLists');
+    let h=warn+`<button class="btn pri" style="width:100%;margin-bottom:14px" onclick="newCollection()">${t('newList')}</button>`;
+    if (!S.collections.length) h+=`<div class="empty"><div class="big">📚</div>${t('emptyLists')}</div>`;
+    S.collections.forEach(c=>{
+      const n=S.items.filter(i=>i.collections.indexOf(c.id)>=0).length;
+      h+=`<div class="colrow" onclick="S.col='${c.id}';render()"><span class="e">${esc(c.emoji)}</span>
+        <span class="n">${esc(c.title)}${isShared('collection',c.id)?`<span class="shared-pill">🔗</span>`:''}</span>
+        <span class="c">${n} ${t('items')}</span></div>`;
+    });
+    h+=`<div style="text-align:center;margin-top:30px"><button class="btn danger" onclick="logout()">${t('logout')}</button></div>`;
+    main.innerHTML=h; return;
+  }
+
+  const base=S.col?S.items.filter(i=>i.collections.indexOf(S.col)>=0):S.items;
+  renderChips(base);
+  let h=warn;
+  if (S.col){
+    const c=S.collections.find(x=>x.id===S.col)||{};
+    h1.innerHTML=`<button onclick="S.col='';render()" style="font-size:22px">‹</button> ${esc(c.emoji||'')} ${esc(c.title||'')}`;
+    h+=`<div class="row"><button class="btn pri" onclick="openShare('collection','${S.col}')">📤 ${t('shareList')}</button>
+      <button class="btn danger" onclick="delCollection('${S.col}')">${t('delList')}</button></div>`;
+  } else h1.textContent=t('app');
+  main.innerHTML=h+gridHtml(filtered(S.items),S.items);
+}
+
+// ---------- sheets ----------
+function tagSearch(tag){ closeSheet(); if(S.mode==='owner') setTab('all'); document.getElementById('q').value=tag; render(); }
+function openSheet(html, keep){
+  const s=document.getElementById('sheet'), y=s.scrollTop;
+  s.innerHTML='<div class="grab"></div>'+html; s.scrollTop=keep?y:0;
+  document.getElementById('bg').style.display='block';
+  requestAnimationFrame(()=>s.classList.add('open'));
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('open');
+  document.getElementById('bg').style.display='none';
+}
+
+function openAdd(prefill, auto, note){
+  openSheet(`<div class="pad">
+    <div class="dt">${t('addTitle')}</div>
+    <div class="ds" style="margin-bottom:12px">${t('addHint')}</div>
+    <textarea id="addUrl" rows="3" placeholder="https://…">${esc(prefill||'')}</textarea>
+    <div class="sec">${t('note')}</div>
+    <textarea id="addNote" rows="2" placeholder="${esc(t('notePh'))}">${esc(note||'')}</textarea>
+    <div class="row"><button class="btn pri" id="addBtn" style="flex:1" onclick="doAdd()">${t('addBtn')}</button></div>
+    <div id="addStatus"></div></div>`);
+  if (auto&&(prefill||note)) doAdd();
+}
+async function doAdd(){
+  const url=document.getElementById('addUrl').value.trim(), note=document.getElementById('addNote').value.trim();
+  if (!url&&!note) return toast(t('pasteFirst'));
+  const btn=document.getElementById('addBtn'); btn.disabled=true; btn.textContent=t('working');
+  document.getElementById('addStatus').innerHTML=`<div class="loading"><div class="spin"></div>${t('workingLong')}</div>`;
+  try{
+    const item=await own('apiAdd', url, note);
+    S.items.unshift(item); render();
+    toast(t('saved')+loc(item).title);
+    openItem(item.id);
+  }catch(e){
+    btn.disabled=false; btn.textContent=t('retry');
+    document.getElementById('addStatus').innerHTML='<div class="warn">'+esc(e.message)+'</div>';
+  }
+}
+
+function itemList(){ return S.mode==='shared' ? (S.shared?S.shared.items:[]) : S.items; }
+
+function openItem(id, keep){
+  const i=itemList().find(x=>x.id===id); if(!i) return;
+  const L=loc(i), d=i.details||{}, owner=S.mode==='owner';
+  const img=i.image?`style="background-image:url('${esc(i.image)}')"`:'';
+  let h=`<div class="hero" ${img}>${i.image?'':typeIcon(i.type)}</div><div class="pad">
+    <div class="ds">${typeIcon(i.type)} ${typeName(i.type)} · ${esc(i.source)}${owner&&isShared('item',i.id)?'<span class="shared-pill">🔗</span>':''}</div>
+    <div class="dt">${esc(L.title)}</div>
+    ${L.subtitle?`<div class="ds">${esc(L.subtitle)}</div>`:''}
+    <div class="row">`;
+  if (owner) h+=`
+      <button class="btn ${i.done?'':'on'}" onclick="patch('${i.id}',{done:false})">${t('wishBtn')}</button>
+      <button class="btn ${i.done?'on':''}" onclick="patch('${i.id}',{done:true})">${t('doneBtn')}</button>
+      <button class="btn ${i.pinned?'on':''}" onclick="patch('${i.id}',{pinned:${!i.pinned}})">📌</button>
+      <button class="btn pri" onclick="openShare('item','${i.id}')">${t('share')}</button>`;
+  h+=`${i.url?`<a class="btn" href="${esc(i.url)}">${t('source')}</a>`:''}
+      ${d.mapsQuery?`<a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.mapsQuery)}">${t('map')}</a>`:''}
+    </div>`;
+  if (owner) h+=`<div class="stars">${[1,2,3,4,5].map(n=>`<button class="${n<=i.rating?'on':''}" onclick="patch('${i.id}',{rating:${n===i.rating?0:n}})">★</button>`).join('')}</div>`;
+  else if (i.rating) h+=`<div class="ds">${t('myRating')}：<span style="color:#f5b301">${'★'.repeat(i.rating)}</span>${'☆'.repeat(5-i.rating)}</div>`;
+  h+=`${L.summary?`<div class="sec">${t('summary')}</div><div>${esc(L.summary)}</div>`:''}
+    ${L.tags.length?`<div class="sec">${t('tags')}</div><div class="tagl">${L.tags.map(tg=>`<span style="cursor:pointer" data-t="${esc(tg)}" onclick="tagSearch(this.dataset.t)">#${esc(tg)}</span>`).join('')}</div>`:''}
+    ${L.facts.length?`<div class="sec">${t('info')}</div><div class="facts">${L.facts.map(f=>`<div><b>${esc(f.label)}</b><span>${esc(f.value)}</span></div>`).join('')}</div>`:''}
+    ${L.ingredients.length?`<div class="sec">${t('ingredients')}</div><ul>${L.ingredients.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+    ${L.steps.length?`<div class="sec">${t('steps')}</div><ol>${L.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`:''}`;
+  if (owner) h+=`
+    <div class="sec">${t('addToList')}</div>
+    <div class="tagl">${S.collections.map(c=>{const on=i.collections.indexOf(c.id)>=0;
+      return `<span style="cursor:pointer;${on?'background:var(--ink);color:var(--bg)':''}" onclick="toggleCol('${i.id}','${c.id}')">${esc(c.emoji)} ${esc(c.title)}</span>`;}).join('')}
+      <span style="cursor:pointer" onclick="newCollection('${i.id}')">${t('newListShort')}</span></div>
+    <div class="sec">${t('notes')}</div>
+    <textarea id="noteBox" rows="3" placeholder="${esc(t('notesPh'))}">${esc(i.notes)}</textarea>
+    <div class="row"><button class="btn" onclick="patch('${i.id}',{notes:document.getElementById('noteBox').value},true)">${t('saveNote')}</button>
+    <button class="btn danger" onclick="delItem('${i.id}')">${t('del')}</button></div>`;
+  h+='</div>';
+  openSheet(h, keep);
+}
+
+async function patch(id,p,quiet){
+  const i=S.items.find(x=>x.id===id); Object.assign(i,p);
+  if (!quiet) openItem(id,true); render();
+  try{ Object.assign(i, await own('apiUpdate',id,p)); if(quiet) toast(t('savedOk')); }
+  catch(e){ toast(t('saveFail')+'：'+e.message); }
+}
+function toggleCol(id,cid){
+  const i=S.items.find(x=>x.id===id);
+  patch(id,{collections:i.collections.indexOf(cid)>=0?i.collections.filter(x=>x!==cid):i.collections.concat(cid)});
+}
+const _confirm={};
+function confirmInline(k){ if(_confirm[k]){delete _confirm[k];return true;} _confirm[k]=1; setTimeout(()=>delete _confirm[k],3000); toast(t('confirmDel')); return false; }
+async function delItem(id){
+  if (!confirmInline('i'+id)) return;
+  S.items=S.items.filter(x=>x.id!==id); S.shares=S.shares.filter(s=>!(s.kind==='item'&&s.targetId===id));
+  closeSheet(); render();
+  try{ await own('apiDelete',id); toast(t('deleted')); }catch(e){ toast(e.message); }
+}
+function newCollection(itemId){
+  openSheet(`<div class="pad"><div class="dt">${t('newListTitle')}</div>
+    <div class="row"><input id="cEmoji" value="📁" style="width:64px;text-align:center;font-size:22px"><input id="cTitle" placeholder="${esc(t('listPh'))}" style="flex:1"></div>
+    <button class="btn pri" style="width:100%" onclick="saveCollection('${itemId||''}')">${t('create')}</button></div>`);
+  setTimeout(()=>document.getElementById('cTitle').focus(),300);
+}
+async function saveCollection(itemId){
+  try{
+    const c=await own('apiAddCollection',document.getElementById('cTitle').value,document.getElementById('cEmoji').value);
+    S.collections.push(c);
+    if (itemId){ const i=S.items.find(x=>x.id===itemId); patch(itemId,{collections:i.collections.concat(c.id)}); }
+    else { closeSheet(); render(); }
+  }catch(e){ toast(e.message); }
+}
+async function delCollection(cid){
+  if (!confirmInline('c'+cid)) return;
+  S.collections=S.collections.filter(c=>c.id!==cid);
+  S.items.forEach(i=>i.collections=i.collections.filter(x=>x!==cid));
+  S.shares=S.shares.filter(s=>!(s.kind==='collection'&&s.targetId===cid));
+  S.col=''; render();
+  try{ await own('apiDeleteCollection',cid); toast(t('deleted')); }catch(e){ toast(e.message); }
+}
+
+// ---------- 分享 ----------
+async function openShare(kind,id){
+  openSheet(`<div class="pad"><div class="dt">${t('shareTitle')}</div><div class="loading"><div class="spin"></div>${t('creatingLink')}</div></div>`);
+  try{
+    const r=await own('apiShare',kind,id);
+    if (!isShared(kind,id)) S.shares.push({kind,targetId:id,token:r.token});
+    render();
+    let name;
+    if (kind==='item'){ name=loc(S.items.find(x=>x.id===id)).title; }
+    else { const c=S.collections.find(x=>x.id===id); name=(c.emoji||'')+' '+c.title; }
+    const url=location.origin+location.pathname+'?s='+r.token+'&lang='+S.lang;
+    const msg=(kind==='item'?t('shareMsgItem'):t('shareMsgList'))+name+'\n'+url;
+    const enc=encodeURIComponent(msg);
+    openSheet(`<div class="pad">
+      <div class="dt">${t('shareTitle')}</div>
+      <div class="ds" style="margin-bottom:12px">${esc(name)}<br>${t('shareDesc')}</div>
+      <div class="sharebox"><input id="shareUrl" readonly value="${esc(url)}" onclick="this.select()"><button class="btn" onclick="copyShare()">${t('copy')}</button></div>
+      <div class="sharegrid">
+        <a href="https://line.me/R/share?text=${enc}"><span class="ico" style="background:#06C755">LINE</span>LINE</a>
+        <a href="https://wa.me/?text=${enc}"><span class="ico" style="background:#25D366">WA</span>WhatsApp</a>
+        <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}"><span class="ico" style="background:#1877F2">f</span>Facebook</a>
+        <button onclick="nativeShare()"><span class="ico" style="background:var(--ink);color:var(--bg)">⋯</span>${t('more')}</button>
+      </div>
+      <button class="btn danger" onclick="stopShare('${kind}','${id}')">${t('stopShare')}</button>
+    </div>`);
+    S._shareMsg=msg; S._shareUrl=url;
+  }catch(e){ toast(e.message); closeSheet(); }
+}
+async function copyShare(){
+  const inp=document.getElementById('shareUrl');
+  try{ await navigator.clipboard.writeText(inp.value); }
+  catch(e){ inp.select(); try{ document.execCommand('copy'); }catch(_){} }
+  toast(t('copied'));
+}
+async function nativeShare(){
+  try{ await navigator.share({ text:S._shareMsg }); }
+  catch(e){ copyShare(); }
+}
+async function stopShare(kind,id){
+  S.shares=S.shares.filter(s=>!(s.kind===kind&&s.targetId===id));
+  closeSheet(); render();
+  try{ await own('apiUnshare',kind,id); toast(t('stopped')); }catch(e){ toast(e.message); }
+}
+
+// ---------- 問 AI ----------
+function renderAsk(main,warn){
+  main.innerHTML=warn+`
+    <div class="ds" style="margin-bottom:10px">${t('askHint')}</div>
+    <textarea id="askQ" rows="3" placeholder="${esc(t('askPh'))}"></textarea>
+    <div class="row">${t('askChips').map(s=>`<button class="chip" data-q="${esc(s)}" onclick="document.getElementById('askQ').value=this.dataset.q">${esc(s)}</button>`).join('')}</div>
+    <button class="btn pri" style="width:100%" id="askBtn" onclick="doAsk()">${t('askBtn')}</button>
+    <div id="askOut" style="margin-top:16px"></div>`;
+}
+async function doAsk(){
+  const q=document.getElementById('askQ').value.trim(); if(!q) return;
+  const out=document.getElementById('askOut'), btn=document.getElementById('askBtn');
+  btn.disabled=true; out.innerHTML=`<div class="loading"><div class="spin"></div>${t('thinking')}</div>`;
+  try{
+    const a=await own('apiAsk',q,S.lang);
+    out.innerHTML='<div class="answer">'+esc(a).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+      .replace(/\[([0-9a-f]{8})\]/g,(m,id)=>S.items.find(x=>x.id===id)?`<span class="ref" onclick="openItem('${id}')">↗</span>`:'')+'</div>';
+  }catch(e){ out.innerHTML='<div class="warn">'+esc(e.message)+'</div>'; }
+  btn.disabled=false;
+}
+
+// ================= 朋友看到的分享頁 =================
+async function loadShared(){
+  document.getElementById('tabs').style.display='none';
+  document.getElementById('fab').style.display='none';
+  document.querySelector('main').style.paddingBottom='30px';
+  try{
+    S.shared=await call('apiShared', BOOT.share);
+    renderShared();
+    if (S.shared.ok && S.shared.kind==='item') openItem(S.shared.items[0].id);
+  }catch(e){ document.getElementById('main').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+function renderShared(){
+  const main=document.getElementById('main'), h1=document.getElementById('h1'), sh=S.shared;
+  if (!sh) return;
+  if (!sh.ok){
+    hideChrome(); h1.textContent=t('app');
+    main.innerHTML=`<div class="empty"><div class="big">🔗</div>${t('linkInvalid')}</div>`; return;
+  }
+  const isList=sh.kind==='collection';
+  document.getElementById('searchBox').style.display=isList&&sh.items.length>6?'':'none';
+  document.getElementById('chips').style.display=isList?'':'none';
+  h1.textContent=isList?`${sh.collection.emoji} ${sh.collection.title}`:t('app');
+  if (isList) renderChips(sh.items);
+  main.innerHTML=`<div class="banner">👋 ${t('sharedBy')}</div>`+gridHtml(filtered(sh.items),sh.items)+
+    `<footer class="by">${t('sharedFooter')}</footer>`;
+}
+
+load();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
